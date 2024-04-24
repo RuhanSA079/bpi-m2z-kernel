@@ -1,6 +1,7 @@
 # BPI-M2 Zero kernel
 
-Linux kernel based on the mainline 5.17.5 kernel for [Banana Pi M2 Zero](https://wiki.banana-pi.org/Banana_Pi_BPI-M2_ZERO) with WiFi (and wireguard)
+Linux kernel based on the mainline 5.17.5 kernel for [Banana Pi M2 Zero](https://wiki.banana-pi.org/Banana_Pi_BPI-M2_ZERO) with WiFi.
+Note that the WiFi driver is missing, need to add it via Linux firmware blob(s)
 
 ## Build & Install
 
@@ -9,10 +10,15 @@ Linux kernel based on the mainline 5.17.5 kernel for [Banana Pi M2 Zero](https:/
 ```
 export PATH=$PATH:/opt/gcc-arm-10.3-2021.07-x86_64-arm-none-linux-gnueabihf/bin
 ```
+1.1 NOTE: Seems like that the normal arm-linux-gnueabihf- package from Ubuntu's repos is enough for compiling the kernel.
+```
+sudo apt install arm-linux-gnueabihf
+prepend this to the make command: CROSS_COMPILE=arm-linux-gnueabihf-
+```
 
 2. Install the following tools and libs:
 ```
-sudo apt-get install flex bison g++ libgmp3-dev libmpc-dev
+sudo apt-get install flex bison g++ libgmp3-dev libmpc-dev device-tree-compiler build-essential python3-setuptools python3-dev
 ```
 
 3. Build from this project root.
@@ -20,33 +26,41 @@ sudo apt-get install flex bison g++ libgmp3-dev libmpc-dev
 ```
 make INSTALL_MOD_PATH=output ARCH=arm CROSS_COMPILE=arm-none-linux-gnueabihf- m2z_lima_defconfig zImage modules modules_install dtbs -j$(nproc)
 ```
+3.1 Normal arm-linux-gnueabi cross-compiler:
+```
+make INSTALL_MOD_PATH=output ARCH=arm CROSS_COMPILE=arm-linux-gnueabihf- m2z_lima_defconfig zImage modules modules_install dtbs -j$(nproc)
+```
 
-4. Copy over the output/* (lib/modules) into rootfs of memory card (Follow the [instructions here to install ubuntu](https://github.com/avafinger/bananapi-zero-ubuntu-base-minimal/releases/tag/v3.10) in the memory card):
+4. Copy over the output/* (lib/modules) into rootfs of memory card
 
 ```
-sudo cp -vfr ./output/* /
+sudo cp -vfr ./output/lib/* /dev/sda2/lib/
 sync
 ```
 
 5. Install into the /boot dir of the memory card:
 
 ```
-export KV=$(strings ./arch/arm/boot/Image | grep "Linux version" -m 1 | awk '{print $3}')
-sudo cp -fv ./arch/arm/boot/zImage /boot/zImage_${KV}
+sudo cp -fv ./arch/arm/boot/zImage /dev/sda1/zImage
 sync
-sudo cp -fv ./arch/arm/boot/dts/bpi-m2-zero-v4.dtb /boot/bpi-m2-zero.dtb_${KV}
+sudo cp -fv ./arch/arm/boot/dts/bpi-m2-zero-v4.dtb /dev/sda1/bpi-m2-zero.dtb
 sync
 ```
 
-6. Update the symlinks to point to new dtb and zImage inside /boot
-
+6. Install/transfer the correct WiFi radio blob to /lib/firmware
 ```
-cd /boot/
-sudo ln -sf bpi-m2-zero.dtb_${KV} bpi-m2-zero.dtb
-sudo ln -sf zImage_${KV} zImage
+TODO
+```
+
+7. Copy Buildroot/barebones OS rootfs to SDCard for fast booting.
+This kernel takes 3s to boot itself, with userspace taking 10s+ to a login shell. (Normal Bookworm rootfs)
+```
+TODO
 ```
 
 ### Changes from mainline
+
+* (TODO) Enable/add the USB gadget ConfigFS/FunctionFS for g_ether, etc.
 
 * Used the m2z_lima_defconfig from https://github.com/avafinger/linux-5.6.y with some modifications to it. ([This](https://github.com/avafinger/bananapi-zero-ubuntu-base-minimal/issues/38#issuecomment-632062680) and some from [here](https://github.com/BPI-SINOVOIP/BPI-M2P-bsp-4.4/blob/b034b7104be40a9fa23a9e8473ef2a1db0d6679c/linux-sunxi/arch/arm/configs/sun8iw7p1smp_bpi-m2z_defconfig#L1821-L1825), although I'm not sure if the latter was necessary for wifi to be working)
 
